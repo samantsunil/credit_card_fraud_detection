@@ -1,0 +1,35 @@
+name: "fraud_rf_smote"
+backend: "python"
+max_batch_size: 128
+
+input [
+  {
+    name: "INPUT__0"
+    data_type: TYPE_FP32
+    dims: [ 30 ]  # feature vector length without batch dim
+  }
+]
+
+output [
+  {
+    name: "OUTPUT__PROB"
+    data_type: TYPE_FP32
+    dims: [ 1 ]
+  },
+  {
+    name: "OUTPUT__CLASS"
+    data_type: TYPE_INT64
+    dims: [ 1 ]
+  }
+]
+
+instance_group [
+  { kind: KIND_CPU, count: 1 }
+]
+
+parameters: {
+  key: "MODEL_FILENAME"
+  value: { string_value: "random_forest_smote.joblib" }
+}
+
+
