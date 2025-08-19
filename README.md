@@ -60,7 +60,8 @@ python src/train_models.py --data-path data/creditcard.csv --test-size 0.3 --ran
 Artifacts:
 
 - `artifacts/metrics_baseline.csv` and `artifacts/metrics_smote.csv`
-- `artifacts/plots/*_confusion_matrix.png`
+- `artifacts/plots/*_confusion_matrix.png` (baseline and SMOTE)
+- `artifacts/plots/*_{roc,pr,score_distribution}.png` (baseline and SMOTE)
 - `artifacts/models/*.{joblib}`
 
 ## 5) Notes

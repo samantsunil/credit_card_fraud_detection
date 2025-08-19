@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from imblearn.over_sampling import SMOTE
-from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import ConfusionMatrixDisplay, roc_curve, auc, precision_recall_curve, average_precision_score
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
@@ -27,6 +27,47 @@ def plot_and_save_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray, title
     fig, ax = plt.subplots(figsize=(4, 4))
     disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, ax=ax, cmap="Blues")
     ax.set_title(title)
+    plt.tight_layout()
+    path = os.path.join(PLOTS_DIR, filename)
+    plt.savefig(path, dpi=150)
+    plt.close(fig)
+
+def plot_and_save_roc_curve(y_true: np.ndarray, y_proba: np.ndarray, title: str, filename: str) -> None:
+    fpr, tpr, _ = roc_curve(y_true, y_proba)
+    roc_auc = auc(fpr, tpr)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.plot(fpr, tpr, label=f"ROC AUC = {roc_auc:.4f}")
+    ax.plot([0, 1], [0, 1], linestyle="--", color="gray", label="Chance")
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax.set_title(title)
+    ax.legend(loc="lower right")
+    plt.tight_layout()
+    path = os.path.join(PLOTS_DIR, filename)
+    plt.savefig(path, dpi=150)
+    plt.close(fig)
+
+def plot_and_save_pr_curve(y_true: np.ndarray, y_proba: np.ndarray, title: str, filename: str) -> None:
+    precision, recall, _ = precision_recall_curve(y_true, y_proba)
+    ap = average_precision_score(y_true, y_proba)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.plot(recall, precision, label=f"AP = {ap:.4f}")
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_title(title)
+    ax.legend(loc="lower left")
+    plt.tight_layout()
+    path = os.path.join(PLOTS_DIR, filename)
+    plt.savefig(path, dpi=150)
+    plt.close(fig)
+
+def plot_and_save_score_distribution(y_true: np.ndarray, y_proba: np.ndarray, title: str, filename: str) -> None:
+    fig, ax = plt.subplots(figsize=(6, 4))
+    sns.histplot(y_proba[y_true == 0], bins=50, color="#1f77b4", alpha=0.6, stat="density", label="Class 0", ax=ax)
+    sns.histplot(y_proba[y_true == 1], bins=50, color="#d62728", alpha=0.6, stat="density", label="Class 1", ax=ax)
+    ax.set_xlabel("Predicted probability of class 1")
+    ax.set_title(title)
+    ax.legend()
     plt.tight_layout()
     path = os.path.join(PLOTS_DIR, filename)
     plt.savefig(path, dpi=150)
@@ -62,6 +103,28 @@ def train_and_evaluate(
         title=f"{model_name} ({suffix})",
         filename=f"{model_name.lower().replace(' ', '_')}_{suffix}_confusion_matrix.png",
     )
+
+    # Additional prediction visualizations when probabilities are available
+    if y_proba is not None:
+        base_filename = f"{model_name.lower().replace(' ', '_')}_{suffix}"
+        plot_and_save_roc_curve(
+            y_test,
+            y_proba,
+            title=f"ROC Curve - {model_name} ({suffix})",
+            filename=f"{base_filename}_roc.png",
+        )
+        plot_and_save_pr_curve(
+            y_test,
+            y_proba,
+            title=f"Precision-Recall - {model_name} ({suffix})",
+            filename=f"{base_filename}_pr.png",
+        )
+        plot_and_save_score_distribution(
+            y_test,
+            y_proba,
+            title=f"Score Distribution - {model_name} ({suffix})",
+            filename=f"{base_filename}_score_distribution.png",
+        )
 
     # Save model
     save_model(
