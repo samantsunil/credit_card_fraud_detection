@@ -6,7 +6,7 @@ input [
   {
     name: "INPUT__0"
     data_type: TYPE_FP32
-    dims: [ 35 ]  # feature vector length without batch dim (30 original + 5 enhanced features)
+    dims: [ 46 ]  # feature vector length without batch dim (30 original + 16 enhanced features)
   }
 ]
 

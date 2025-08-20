@@ -10,6 +10,43 @@ import requests
 from typing import List, Dict, Any
 
 
+def calculate_enhanced_features(features: list) -> list:
+    """Calculate enhanced features for a given feature vector."""
+    # Basic engineered features
+    v_sum_abs = np.sum(np.abs(features[1:29]))
+    v_std = np.std(features[1:29])
+    v_max_abs = np.max(np.abs(features[1:29]))
+    amount_time_ratio = features[29] / (features[0] + 1)
+    v_outliers = np.sum(np.abs(features[1:29]) > 2)
+    
+    # Advanced features
+    v_positive = np.sum(features[1:29] > 0)
+    v_negative = np.sum(features[1:29] < 0)
+    v_pos_neg_ratio = v_positive / (v_negative + 1)
+    v_variance = np.var(features[1:29])
+    v_range = np.max(features[1:29]) - np.min(features[1:29])
+    v_95th_percentile = np.percentile(features[1:29], 95)
+    v_above_95th = np.sum(features[1:29] > v_95th_percentile)
+    amount_v_ratio = features[29] / (v_sum_abs + 1)
+    
+    time_hour = (features[0] % 86400) / 3600
+    time_sin = np.sin(2 * np.pi * time_hour / 24)
+    time_cos = np.cos(2 * np.pi * time_hour / 24)
+    
+    amount_v_max_interaction = features[29] * v_max_abs
+    time_amount_interaction = features[0] * features[29]
+    
+    v_skewness = np.mean(((features[1:29] - np.mean(features[1:29])) / (np.std(features[1:29]) + 1e-8)) ** 3)
+    v_kurtosis = np.mean(((features[1:29] - np.mean(features[1:29])) / (np.std(features[1:29]) + 1e-8)) ** 4) - 3
+    
+    return [
+        v_sum_abs, v_std, v_max_abs, amount_time_ratio, v_outliers,
+        v_pos_neg_ratio, v_variance, v_range, v_above_95th, amount_v_ratio,
+        time_sin, time_cos, amount_v_max_interaction, time_amount_interaction,
+        v_skewness, v_kurtosis
+    ]
+
+
 def create_valid_transaction() -> List[float]:
     """Create a realistic valid transaction."""
     features = []
@@ -26,13 +63,8 @@ def create_valid_transaction() -> List[float]:
     features.append(abs(np.random.normal(50, 30)))
     
     # Add enhanced features for valid transaction
-    v_sum_abs = np.sum(np.abs(features[1:29]))
-    v_std = np.std(features[1:29])
-    v_max_abs = np.max(np.abs(features[1:29]))
-    amount_time_ratio = features[29] / (features[0] + 1)
-    v_outliers = np.sum(np.abs(features[1:29]) > 2)
-    
-    features.extend([v_sum_abs, v_std, v_max_abs, amount_time_ratio, v_outliers])
+    enhanced_features = calculate_enhanced_features(features)
+    features.extend(enhanced_features)
     
     return features
 
@@ -53,13 +85,8 @@ def create_fraud_transaction() -> List[float]:
     features.append(abs(np.random.normal(200, 100)))
     
     # Add enhanced features for fraud transaction
-    v_sum_abs = np.sum(np.abs(features[1:29]))
-    v_std = np.std(features[1:29])
-    v_max_abs = np.max(np.abs(features[1:29]))
-    amount_time_ratio = features[29] / (features[0] + 1)
-    v_outliers = np.sum(np.abs(features[1:29]) > 2)
-    
-    features.extend([v_sum_abs, v_std, v_max_abs, amount_time_ratio, v_outliers])
+    enhanced_features = calculate_enhanced_features(features)
+    features.extend(enhanced_features)
     
     return features
 
@@ -74,7 +101,7 @@ def test_single_transaction(features: List[float], transaction_type: str,
             {
                 "name": "INPUT__0",
                 "datatype": "FP32",
-                "shape": [1, 35],
+                "shape": [1, 46],
                 "data": features
             }
         ],
@@ -192,19 +219,19 @@ def test_edge_cases() -> None:
     print("-" * 30)
     
     # Test zero values
-    zero_features = [0.0] * 35
+    zero_features = [0.0] * 46
     result = test_single_transaction(zero_features, "ZERO_VALUES")
     if "error" not in result:
         print(f"Zero values: Prob={result['probability']:.4f} | Pred={result['prediction']}")
     
     # Test very large values
-    large_features = [1000.0] * 35
+    large_features = [1000.0] * 46
     result = test_single_transaction(large_features, "LARGE_VALUES")
     if "error" not in result:
         print(f"Large values: Prob={result['probability']:.4f} | Pred={result['prediction']}")
     
     # Test negative values
-    negative_features = [-10.0] * 35
+    negative_features = [-10.0] * 46
     result = test_single_transaction(negative_features, "NEGATIVE_VALUES")
     if "error" not in result:
         print(f"Negative values: Prob={result['probability']:.4f} | Pred={result['prediction']}")
