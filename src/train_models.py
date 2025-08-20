@@ -157,7 +157,7 @@ def main() -> None:
 
     # Models
     dt = DecisionTreeClassifier(random_state=args.random_state)
-    rf = RandomForestClassifier(n_estimators=200, random_state=args.random_state, n_jobs=-1)
+    rf = RandomForestClassifier(n_estimators=100, random_state=args.random_state, n_jobs=-1)
 
     # Baseline (no resampling)
     baseline_metrics = []

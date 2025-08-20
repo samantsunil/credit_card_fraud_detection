@@ -1,0 +1,14 @@
+{
+  "inputs": [
+    {
+      "name": "INPUT__0",
+      "datatype": "FP32",
+      "shape": [1, 30],
+      "data": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    }
+  ],
+  "outputs": [
+    {"name": "OUTPUT__PROB"},
+    {"name": "OUTPUT__CLASS"}
+  ]
+}

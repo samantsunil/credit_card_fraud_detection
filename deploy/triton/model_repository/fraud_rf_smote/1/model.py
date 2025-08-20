@@ -6,13 +6,23 @@ import triton_python_backend_utils as pb_utils
 
 class TritonPythonModel:
     def initialize(self, args):
-        model_config = args.get("model_config")
-        params = model_config.get("parameters", {})
-        model_filename = None
-        if "MODEL_FILENAME" in params and "string_value" in params["MODEL_FILENAME"]:
-            model_filename = params["MODEL_FILENAME"]["string_value"]
+        # Handle different argument formats
+        if isinstance(args, dict):
+            model_config = args.get("model_config", {})
         else:
-            model_filename = "random_forest_smote.joblib"
+            model_config = {}
+            
+        # Get parameters safely
+        params = {}
+        if isinstance(model_config, dict):
+            params = model_config.get("parameters", {})
+        
+        # Get model filename
+        model_filename = "random_forest_smote.joblib"
+        if "MODEL_FILENAME" in params:
+            model_filename_param = params["MODEL_FILENAME"]
+            if isinstance(model_filename_param, dict) and "string_value" in model_filename_param:
+                model_filename = model_filename_param["string_value"]
 
         # Load the RF model artifact from the same version directory
         model_dir = os.path.dirname(__file__)
