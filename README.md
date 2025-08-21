@@ -1,119 +1,71 @@
 # Credit Card Fraud Detection (Python)
 
-This project builds and evaluates Decision Tree and Random Forest classifiers for credit card fraud detection. It includes:
+This project trains a Random Forest classifier for credit card fraud detection using SMOTE to handle class imbalance. It includes training, evaluation, model artifact export and optional deployment to NVIDIA Triton Inference Server.
 
-- EDA: missing values, outliers, class imbalance, and visualizations
-- 70/30 train-test split
-- Baseline models: Decision Tree and Random Forest
-- Handling class imbalance with SMOTE (from imbalanced-learn)
-- **Advanced techniques**: Feature engineering, multiple resampling methods, improved model tuning
-- Metrics: accuracy, precision, recall, F1, ROC-AUC, confusion matrices
-- **Model deployment**: NVIDIA Triton Inference Server integration
+Quick: train, stage model, start Triton and test
+- Use the helper scripts in deploy/triton/ to automate training and staging the model into a Triton model repository.
+- Starting Triton is done manually (PowerShell on Windows) because Rancher Desktop / local environments differ; the script prints the exact command to run.
 
-## 1) Setup
-
-### Create and activate a virtual environment (Windows - Git Bash / PowerShell)
-
+1) Make scripts executable (from Git Bash / WSL)
 ```bash
-python -m venv .venv
-source .venv/Scripts/activate
+chmod +x deploy/triton/*.sh
 ```
 
-### Install dependencies
-
+2) Optional: remove duplicate Triton clients
 ```bash
-pip install -r requirements.txt
+./deploy/triton/cleanup_unwanted.sh
 ```
 
-## 2) Data
-
-Use the public credit card transactions dataset with fraud labels. If you already have the CSV, place it at `data/creditcard.csv`.
-
-If you want to download from Kaggle (`mlg-ulb/creditcardfraud`), set up Kaggle credentials and run:
-
+3) Train and stage model (this script trains and copies the artifact into deploy/triton/model_repository/<MODEL_NAME>/1/)
 ```bash
-# requires Kaggle API configured (~/.kaggle/kaggle.json)
-kaggle datasets download -d mlg-ulb/creditcardfraud -p data/ --force
-unzip -o data/creditcardfraud.zip -d data/
+# from repo root; override DATA_PATH if needed
+DATA_PATH=data/creditcard.csv ./deploy/triton/train_deploy_test.sh
 ```
 
-Expected file after setup:
-
+4) Start Triton server (manual step — PowerShell example)
+- On Windows / PowerShell (run from the repo root; this maps the host model repo into the container):
+```powershell
+# PowerShell example — adjust image name if different
+$ModelRepo = Join-Path (Get-Location).Path "deploy\triton\model_repository"
+docker run --rm -p8000:8000 -p8001:8001 -p8002:8002 `
+  -v "$ModelRepo:/models" triton-scikit-learn:24.05-py3 `
+  tritonserver --model-repository=/models --strict-model-config=false
 ```
-data/creditcard.csv
-```
 
-## 3) EDA
-
-Run EDA; this will print summaries and save plots to `artifacts/eda/`.
-
+- On WSL / Linux (or if using nerdctl with Rancher Desktop inside WSL):
 ```bash
-python src/eda.py --data-path data/creditcard.csv
+# docker (or nerdctl) example
+docker run --rm -p8000:8000 -p8001:8001 -p8002:8002 \
+  -v "$(pwd)/deploy/triton/model_repository:/models" triton-scikit-learn:24.05-py3 \
+  tritonserver --model-repository=/models --strict-model-config=false
 ```
 
-## 4) Train and Evaluate Models
+Note: If you built the Triton image inside Rancher Desktop, run the container command in the same context (WSL distro) so the runtime can see the image. If you use Rancher Desktop's containerd/nerdctl, replace `docker` with `nerdctl` in the command.
 
-### Basic Training (Baseline + SMOTE)
-
-Train Decision Tree and Random Forest on the original data (baseline) and with SMOTE. Metrics and artifacts are saved under `artifacts/`.
-
+5) Test the deployed model (once Triton is ready)
 ```bash
-python src/train_models.py --data-path data/creditcard.csv --test-size 0.3 --random-state 42
+python deploy/triton/test_fraud_detection.py
 ```
+- The test script is runnable directly (does not require pytest installed), converts numpy types to native Python types for JSON, and will attempt HTTP inference against http://localhost:8000 by default.
+- If you prefer pytest-style execution, install pytest and run it under pytest; the script is written to be usable both ways.
 
-### Advanced Training (Recommended)
+Environment variables / overrides
+- DATA_PATH — path to creditcard.csv (default: data/creditcard.csv)
+- MODEL_REPO — path to model repository used by scripts (default: $(pwd)/deploy/triton/model_repository)
+- MODEL_NAME — model name inside model repository (default: fraud_rf_smote)
+- TRITON_IMAGE — override Triton image name if different from triton-scikit-learn:24.05-py3
 
-Use the improved training script with advanced techniques for better fraud detection:
+Troubleshooting
+- If the script cannot find your Triton image, list local images:
+  - docker: docker images | grep -i triton
+  - nerdctl: nerdctl images | grep -i triton
+- Ensure the model artifact exists under deploy/triton/model_repository/<MODEL_NAME>/1/ (train script tries to stage it).
+- If the Triton container exits early, inspect logs:
+  - docker: docker logs <container_name>
+  - nerdctl: nerdctl logs <container_name>
 
-```bash
-python src/improved_retraining.py --data-path data/creditcard.csv --deploy
-```
-
-**Key improvements in advanced training:**
-- **Feature Engineering**: Creates 5 additional fraud-specific features
-  - Sum of absolute V-values (overall magnitude)
-  - Standard deviation of V-values (variability)
-  - Maximum absolute V-value (extreme values)
-  - Amount-to-time ratio (unusual timing patterns)
-  - Number of outliers (V-features with abs value > 2)
-- **Advanced Resampling**: Tests multiple methods (SMOTE, ADASYN, SMOTEENN, SMOTETomek) and selects the best
-- **Better Model Configuration**: Optimized hyperparameters for fraud detection
-- **Comprehensive Validation**: Tests with realistic fraud patterns
-- **Automatic Deployment**: Optionally deploys to Triton Inference Server
-
-**Artifacts from basic training:**
-- `artifacts/metrics_baseline.csv` and `artifacts/metrics_smote.csv`
-- `artifacts/plots/*_confusion_matrix.png` (baseline and SMOTE)
-- `artifacts/plots/*_{roc,pr,score_distribution}.png` (baseline and SMOTE)
-- `artifacts/models/*.{joblib}`
-
-**Artifacts from advanced training:**
-- `artifacts/models/random_forest_improved.joblib`
-- `artifacts/improved_evaluation_results.csv`
-- Enhanced model with 35 features (30 original + 5 engineered)
-
-## 5) Model Deployment
-
-The project includes deployment to NVIDIA Triton Inference Server for production-ready inference:
-
-```bash
-# See detailed deployment instructions
-cat deploy/triton/README_TRITON.md
-```
-
-**Quick deployment steps:**
-1. Train the improved model: `python src/improved_retraining.py --data-path data/creditcard.csv --deploy`
-2. Start Triton server: See `deploy/triton/README_TRITON.md`
-3. Test the deployed model: `python deploy/triton/test_fraud_detection.py`
-
-## 6) Notes
-
-- SMOTE is applied only to the training split to avoid leakage.
-- Trees do not require feature scaling.
-- The improved model uses 35 features (30 original + 5 engineered features).
-- Advanced training automatically selects the best resampling method.
-
-## 7) Requirements
-
-See `requirements.txt` for the full list of Python packages.
+Manual flow summary
+- Train & stage: DATA_PATH=... ./deploy/triton/train_deploy_test.sh
+- Start Triton (PowerShell or WSL as shown)
+- Run test client: python deploy/triton/test_fraud_detection.py
 

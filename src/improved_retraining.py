@@ -78,13 +78,23 @@ def create_fraud_features(X: np.ndarray) -> np.ndarray:
     return X_enhanced
 
 
-def train_with_advanced_smote(X: np.ndarray, y: np.ndarray, random_state: int = 42) -> tuple:
-    """Train model with advanced SMOTE and resampling techniques."""
-    print("\n🔄 Training with advanced SMOTE...")
+def train_with_simple_smote(X: np.ndarray, y: np.ndarray, random_state: int = 42) -> tuple:
+    """Train model with simple SMOTE approach - resample entire dataset first, then split."""
+    print("\n🔄 Training with simple SMOTE approach...")
     
-    # Split data first (70/30)
+    # Apply SMOTE to entire dataset first
+    print("Applying SMOTE to entire dataset...")
+    smote = SMOTE(random_state=random_state)
+    X_resampled, y_resampled = smote.fit_resample(X, y)
+    
+    print(f"Original dataset shape: {X.shape}")
+    print(f"Resampled dataset shape: {X_resampled.shape}")
+    print(f"Original class distribution: {np.bincount(y)}")
+    print(f"Resampled class distribution: {np.bincount(y_resampled)}")
+    
+    # Split the resampled data (70/30)
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=random_state, stratify=y
+        X_resampled, y_resampled, test_size=0.3, random_state=random_state, stratify=y_resampled
     )
     
     print(f"Training set shape: {X_train.shape}")
@@ -92,68 +102,19 @@ def train_with_advanced_smote(X: np.ndarray, y: np.ndarray, random_state: int = 
     print(f"Training class distribution: {np.bincount(y_train)}")
     print(f"Test class distribution: {np.bincount(y_test)}")
     
-    # Try different resampling techniques
-    resampling_methods = {
-        'SMOTE': SMOTE(random_state=random_state, k_neighbors=3),
-        'ADASYN': ADASYN(random_state=random_state),
-        'SMOTEENN': SMOTEENN(random_state=random_state),
-        'SMOTETomek': SMOTETomek(random_state=random_state)
-    }
+    # Create Random Forest model
+    print("\n🌲 Training Random Forest model...")
     
-    best_method = None
-    best_score = 0
-    best_X_train_resampled = None
-    best_y_train_resampled = None
-    
-    print("\n🔍 Testing different resampling methods...")
-    
-    for method_name, resampler in resampling_methods.items():
-        try:
-            print(f"Testing {method_name}...")
-            X_train_resampled, y_train_resampled = resampler.fit_resample(X_train, y_train)
-            
-            # Quick evaluation with a simple model
-            temp_rf = RandomForestClassifier(n_estimators=50, random_state=random_state, n_jobs=-1)
-            temp_rf.fit(X_train_resampled, y_train_resampled)
-            
-            # Cross-validation score
-            cv_scores = cross_val_score(temp_rf, X_train_resampled, y_train_resampled, 
-                                      cv=3, scoring='f1', n_jobs=-1)
-            avg_score = cv_scores.mean()
-            
-            print(f"{method_name} - CV F1 Score: {avg_score:.4f}")
-            print(f"{method_name} - Resampled shape: {X_train_resampled.shape}")
-            print(f"{method_name} - Class distribution: {np.bincount(y_train_resampled)}")
-            
-            if avg_score > best_score:
-                best_score = avg_score
-                best_method = method_name
-                best_X_train_resampled = X_train_resampled
-                best_y_train_resampled = y_train_resampled
-                
-        except Exception as e:
-            print(f"Error with {method_name}: {e}")
-            continue
-    
-    print(f"\n✅ Best resampling method: {best_method} (F1 Score: {best_score:.4f})")
-    
-    # Train final Random Forest with best resampled data
-    print("\n🌲 Training final Random Forest...")
     rf = RandomForestClassifier(
-        n_estimators=100,  # As requested
-        max_depth=15,
-        min_samples_split=2,
-        min_samples_leaf=1,
+        n_estimators=100,
         random_state=random_state,
-        n_jobs=-1,
-        class_weight='balanced_subsample',  # Better for imbalanced data
-        criterion='entropy'  # Often better for fraud detection
+        n_jobs=-1
     )
     
-    # Train on best resampled data
-    rf.fit(best_X_train_resampled, best_y_train_resampled)
+    # Train on resampled data
+    rf.fit(X_train, y_train)
     
-    return rf, X_train, X_test, y_train, y_test, best_X_train_resampled, best_y_train_resampled
+    return rf, X_train, X_test, y_train, y_test, X_resampled, y_resampled
 
 
 def evaluate_model_comprehensive(model, X_test: np.ndarray, y_test: np.ndarray, 
@@ -415,8 +376,8 @@ def main():
     # Create enhanced features
     X_enhanced = create_fraud_features(X)
     
-    # Train model with advanced SMOTE
-    model, X_train, X_test, y_train, y_test, X_train_resampled, y_train_resampled = train_with_advanced_smote(
+    # Train model with simple SMOTE
+    model, X_train, X_test, y_train, y_test, X_resampled, y_resampled = train_with_simple_smote(
         X_enhanced, y, args.random_state
     )
     
