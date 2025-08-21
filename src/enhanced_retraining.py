@@ -346,21 +346,25 @@ def create_realistic_test_data() -> tuple:
 
 def calculate_enhanced_features(features: list) -> list:
     """Calculate enhanced features for a given feature vector."""
+    # Convert to numpy array for vectorized operations
+    features_array = np.array(features)
+    v_features = features_array[1:29]  # V1-V28 features
+    
     # Basic engineered features
-    v_sum_abs = np.sum(np.abs(features[1:29]))
-    v_std = np.std(features[1:29])
-    v_max_abs = np.max(np.abs(features[1:29]))
+    v_sum_abs = np.sum(np.abs(v_features))
+    v_std = np.std(v_features)
+    v_max_abs = np.max(np.abs(v_features))
     amount_time_ratio = features[29] / (features[0] + 1)
-    v_outliers = np.sum(np.abs(features[1:29]) > 2)
+    v_outliers = np.sum(np.abs(v_features) > 2)
     
     # Advanced features
-    v_positive = np.sum(features[1:29] > 0)
-    v_negative = np.sum(features[1:29] < 0)
+    v_positive = np.sum(v_features > 0)
+    v_negative = np.sum(v_features < 0)
     v_pos_neg_ratio = v_positive / (v_negative + 1)
-    v_variance = np.var(features[1:29])
-    v_range = np.max(features[1:29]) - np.min(features[1:29])
-    v_95th_percentile = np.percentile(features[1:29], 95)
-    v_above_95th = np.sum(features[1:29] > v_95th_percentile)
+    v_variance = np.var(v_features)
+    v_range = np.max(v_features) - np.min(v_features)
+    v_95th_percentile = np.percentile(v_features, 95)
+    v_above_95th = np.sum(v_features > v_95th_percentile)
     amount_v_ratio = features[29] / (v_sum_abs + 1)
     
     time_hour = (features[0] % 86400) / 3600
@@ -370,8 +374,8 @@ def calculate_enhanced_features(features: list) -> list:
     amount_v_max_interaction = features[29] * v_max_abs
     time_amount_interaction = features[0] * features[29]
     
-    v_skewness = np.mean(((features[1:29] - np.mean(features[1:29])) / (np.std(features[1:29]) + 1e-8)) ** 3)
-    v_kurtosis = np.mean(((features[1:29] - np.mean(features[1:29])) / (np.std(features[1:29]) + 1e-8)) ** 4) - 3
+    v_skewness = np.mean(((v_features - np.mean(v_features)) / (np.std(v_features) + 1e-8)) ** 3)
+    v_kurtosis = np.mean(((v_features - np.mean(v_features)) / (np.std(v_features) + 1e-8)) ** 4) - 3
     
     return [
         v_sum_abs, v_std, v_max_abs, amount_time_ratio, v_outliers,
