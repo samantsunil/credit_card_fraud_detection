@@ -55,4 +55,4 @@ Notes and troubleshooting
   - nerdctl run --name triton_server ... then nerdctl logs -f triton_server
 - If the test client fails with JSON serialization errors, ensure the test script is up to date — it converts numpy types to native floats/ints automatically.
 
-If you want the training script to also automatically start Triton in your environment, I can add an optional flag and implement runtime detection for your setup — let me know you prefer that.
+If you want the training script to also automatically start Triton in your environment, you can add an optional flag and implement runtime detection for your setup.
